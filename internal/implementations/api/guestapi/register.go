@@ -2,6 +2,7 @@ package guestapi
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/guest"
@@ -19,10 +20,11 @@ func (api *api) Register(req request.Request, resp response.Response) {
 		return
 	}
 
-	if err := api.guestSvc.Register(ctx, args); err != nil {
+	regisResp, err := api.guestSvc.Register(ctx, args)
+	if err != nil {
 		resp.RespondJSON(nil, err)
 		return
 	}
 
-	resp.RespondJSON(nil, nil)
+	resp.RespondJSON(regisResp, nil, http.StatusCreated)
 }

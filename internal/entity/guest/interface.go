@@ -8,13 +8,13 @@ import (
 )
 
 type GuestRepository interface {
-	Find(ctx context.Context, filter GuestFilter) (data Guests, err error)
+	Find(ctx context.Context, filter GuestFilter, sorter GuestSorter) (data Guests, err error)
 	Count(ctx context.Context, filter GuestFilter) (count int64, err error)
 	Insert(ctx context.Context, datum *Guest) (err error)
 }
 
 type GuestService interface {
-	Register(ctx context.Context, args RegisterRequest) (err error)
+	Register(ctx context.Context, args RegisterRequest) (resp *RegisterResponse, err error)
 	ListGuests(ctx context.Context, args ListGuestsRequest) (resp *ListGuestsResponse, err error)
 }
 

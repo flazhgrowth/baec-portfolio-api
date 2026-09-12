@@ -9,8 +9,8 @@ import (
 var (
 	GuestTable table.Table = table.Table{
 		Name:          "guests",
-		SelectColumns: []string{"id", "name", "created_at"},
-		InsertColumns: []string{"name"},
+		SelectColumns: []string{"id", "name", "visit_id", "created_at"},
+		InsertColumns: []string{"name", "visit_id"},
 		CountColumns:  []string{"COUNT(id)"},
 	}
 )
@@ -18,7 +18,8 @@ var (
 type (
 	Guest struct {
 		entity.BaseModel
-		Name string `db:"name"`
+		Name    string `db:"name"`
+		VisitID string `db:"visit_id"`
 	}
 	Guests []Guest
 )
@@ -28,5 +29,6 @@ func (datum *Guest) InsertValuesQuery(builder squirrel.InsertBuilder) squirrel.I
 		Columns(GuestTable.InsertColumns...).
 		Values(
 			datum.Name,
+			datum.VisitID,
 		)
 }

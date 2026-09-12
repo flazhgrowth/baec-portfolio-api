@@ -8,7 +8,7 @@ import (
 	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
 )
 
-func (repo *repository) Find(ctx context.Context, filter guest.GuestFilter) (data guest.Guests, err error) {
+func (repo *repository) Find(ctx context.Context, filter guest.GuestFilter, sorter guest.GuestSorter) (data guest.Guests, err error) {
 	logpath := baselogpath.With("Find")
 
 	builder := squirrel.
@@ -16,6 +16,7 @@ func (repo *repository) Find(ctx context.Context, filter guest.GuestFilter) (dat
 		From(guest.GuestTable.Name).
 		PlaceholderFormat(squirrel.Dollar)
 	builder = filter.ConditionQuery(builder)
+	builder = sorter.SortQuery(builder)
 
 	query, args, err := builder.ToSql()
 	if err != nil {

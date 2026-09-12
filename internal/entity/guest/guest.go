@@ -8,27 +8,26 @@ import (
 
 type (
 	ListGuestsRequest struct {
-		entity.PaginationRequest
+		entity.CursorPaginationRequest
 	}
 	ListGuestsResponse struct {
-		Data       GuestsResponses           `json:"guests"`
-		Pagination entity.PaginationResponse `json:"pagination"`
+		Data       GuestsResponses                 `json:"guests"`
+		Pagination entity.CursorPaginationResponse `json:"pagination"`
 	}
 )
 
 func (req *ListGuestsRequest) Normalize() *ListGuestsRequest {
-	if req.Page == 0 {
-		req.Page = 1
-	}
 	if req.Size == 0 {
 		req.Size = 10
 	}
 
+	req.DecodeCursor()
 	return req
 }
 
 type (
 	GuestResponse struct {
+		ID        uint64    `json:"id"`
 		Name      string    `json:"name"`
 		VisitedAt time.Time `json:"visited_at"`
 	}
@@ -37,6 +36,12 @@ type (
 
 type (
 	RegisterRequest struct {
-		Name string `json:"name"`
+		Name    string `json:"name"`
+		VisitID string `json:"visit_id"`
+	}
+	RegisterResponse struct {
+		ID        uint64    `json:"id"`
+		Name      string    `json:"name"`
+		VisitedAt time.Time `json:"visited_at"`
 	}
 )

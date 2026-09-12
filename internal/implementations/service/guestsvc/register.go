@@ -7,14 +7,18 @@ import (
 	"github.com/flazhgrowth/fg-tamagochi/pkg/http/apierrors"
 )
 
-func (svc *service) Register(ctx context.Context, args guest.RegisterRequest) (err error) {
+func (svc *service) Register(ctx context.Context, args guest.RegisterRequest) (resp *guest.RegisterResponse, err error) {
 	logpath := baselogpath.With("Register")
 
-	guestData := &guest.Guest{Name: args.Name}
+	guestData := &guest.Guest{Name: args.Name, VisitID: args.VisitID}
 	if err = svc.guestRepo.Insert(ctx, guestData); err != nil {
 		logpath.With("guestRepo.Insert").LogError(ctx, "failed on inserting new guests", err)
-		return apierrors.ErrorInternalServerError()
+		return nil, apierrors.ErrorInternalServerError()
 	}
 
-	return nil
+	return &guest.RegisterResponse{
+		ID:        guestData.ID,
+		Name:      guestData.Name,
+		VisitedAt: now(),
+	}, nil
 }

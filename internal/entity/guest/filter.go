@@ -7,17 +7,26 @@ import (
 
 type (
 	GuestFilter struct {
-		Page model.Filter[int]
+		ID   model.Filter[uint64]
 		Size model.Filter[int]
+	}
+	GuestSorter struct {
+		Sorter []string
 	}
 )
 
 func (filter *GuestFilter) ConditionQuery(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
-	if filter.Page.Valid && filter.Size.Valid {
-		offset := (filter.Page.V - 1) / filter.Size.V
-		builder = builder.
-			Offset(uint64(offset)).
-			Limit(uint64(filter.Size.V))
+	builder = filter.ID.ConditionQuery(builder, "id")
+	if filter.Size.Valid {
+		builder = builder.Limit(uint64(filter.Size.V))
+	}
+
+	return builder
+}
+
+func (sorter *GuestSorter) SortQuery(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+	if len(sorter.Sorter) > 0 {
+		builder = builder.OrderBy(sorter.Sorter...)
 	}
 
 	return builder
