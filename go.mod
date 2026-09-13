@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/flazhgrowth/fg-tamagochi v1.1.0
+	github.com/flazhgrowth/fg-tamagochi v1.1.3
 	github.com/go-chi/cors v1.2.1
 	github.com/google/wire v0.7.0
 )
