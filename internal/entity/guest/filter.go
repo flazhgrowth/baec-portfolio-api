@@ -1,14 +1,21 @@
 package guest
 
 import (
+	"database/sql"
+	"time"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/model"
 )
 
 type (
 	GuestFilter struct {
-		ID   model.Filter[uint64]
-		Size model.Filter[int]
+		ID      model.Filter[uint64]
+		VisitID model.Filter[string]
+		Size    model.Filter[int]
+	}
+	GuestFields struct {
+		Name sql.NullString
 	}
 	GuestSorter struct {
 		Sorter []string
@@ -17,6 +24,7 @@ type (
 
 func (filter *GuestFilter) ConditionQuery(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
 	builder = filter.ID.ConditionQuery(builder, "id")
+	builder = filter.VisitID.ConditionQuery(builder, "visit_id")
 	if filter.Size.Valid {
 		builder = builder.Limit(uint64(filter.Size.V))
 	}
@@ -30,4 +38,12 @@ func (sorter *GuestSorter) SortQuery(builder squirrel.SelectBuilder) squirrel.Se
 	}
 
 	return builder
+}
+
+func (fields *GuestFields) UpdateSetQuery(builder squirrel.UpdateBuilder) squirrel.UpdateBuilder {
+	if fields.Name.Valid {
+		builder = builder.Set("name", fields.Name.String)
+	}
+
+	return builder.Set("updated_at", time.Now())
 }

@@ -10,12 +10,15 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/acccountapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/guestapi"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/msgapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/specialentryapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/accountrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/guestrepo"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/msgrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/specialentryrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/accountsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/guestsvc"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/msgsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/specialentrysvc"
 	"github.com/flazhgrowth/fg-tamagochi/app"
 )
@@ -32,10 +35,14 @@ func InitAPI(app2 *app.App) *api.APIs {
 	specialEntryRepository := specialentryrepo.New(app2)
 	specialEntryService := specialentrysvc.New(app2, specialEntryRepository)
 	specialEntryAPI := specialentryapi.New(specialEntryService)
+	msgRepository := msgrepo.New(app2)
+	msgService := msgsvc.New(msgRepository, guestRepository)
+	msgAPI := msgapi.New(msgService)
 	apIs := &api.APIs{
 		AccountAPI:      accountAPI,
 		GuestAPI:        guestAPI,
 		SpecialEntryAPI: specialEntryAPI,
+		MsgAPI:          msgAPI,
 	}
 	return apIs
 }

@@ -11,6 +11,7 @@ type GuestRepository interface {
 	Find(ctx context.Context, filter GuestFilter, sorter GuestSorter) (data Guests, err error)
 	Count(ctx context.Context, filter GuestFilter) (count int64, err error)
 	Insert(ctx context.Context, datum *Guest) (err error)
+	Update(ctx context.Context, fields GuestFields, filter GuestFilter) (err error)
 }
 
 type GuestService interface {

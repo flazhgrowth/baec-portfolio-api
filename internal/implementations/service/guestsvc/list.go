@@ -55,7 +55,7 @@ func (svc *service) ListGuests(ctx context.Context, args guest.ListGuestsRequest
 		guestsResp = append(guestsResp, guest.GuestResponse{
 			ID:        guestFound.ID,
 			Name:      guestFound.Name,
-			VisitedAt: guestFound.CreatedAt,
+			VisitedAt: guestFound.UpdatedAt.Time,
 		})
 	}
 
