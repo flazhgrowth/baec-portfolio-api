@@ -9,7 +9,7 @@ import (
 var (
 	GuestTable table.Table = table.Table{
 		Name:          "guests",
-		SelectColumns: []string{"id", "name", "visit_id", "created_at"},
+		SelectColumns: []string{"id", "name", "visit_id", "created_at", "updated_at"},
 		InsertColumns: []string{"name", "visit_id"},
 		CountColumns:  []string{"COUNT(id)"},
 	}
