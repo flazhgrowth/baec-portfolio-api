@@ -1,0 +1,4 @@
+.git
+etc/config/*
+etc/featureflag/*
+etc/vault/*
