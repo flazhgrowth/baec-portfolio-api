@@ -4,10 +4,12 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/account"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/guest"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/msg"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/note"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/accountsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/guestsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/msgsvc"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/notesvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/specialentrysvc"
 	"github.com/google/wire"
 )
@@ -17,6 +19,7 @@ var ServiceWireSet = wire.NewSet(
 	guestsvc.New,
 	specialentrysvc.New,
 	msgsvc.New,
+	notesvc.New,
 )
 
 type Services struct {
@@ -24,4 +27,5 @@ type Services struct {
 	GuestSvc        guest.GuestService
 	SpecialEntrySvc specialentry.SpecialEntryService
 	MsgSvc          msg.MsgService
+	NoteSvc         note.NoteService
 }

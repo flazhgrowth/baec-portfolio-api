@@ -4,10 +4,12 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/account"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/guest"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/msg"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/note"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
 	accountapi "github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/acccountapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/guestapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/msgapi"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/noteapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/specialentryapi"
 	"github.com/google/wire"
 )
@@ -17,6 +19,7 @@ var APIWireSet = wire.NewSet(
 	guestapi.New,
 	specialentryapi.New,
 	msgapi.New,
+	noteapi.New,
 )
 
 type APIs struct {
@@ -24,4 +27,5 @@ type APIs struct {
 	GuestAPI        guest.GuestAPI
 	SpecialEntryAPI specialentry.SpecialEntryAPI
 	MsgAPI          msg.MsgAPI
+	NoteAPI         note.NoteAPI
 }
