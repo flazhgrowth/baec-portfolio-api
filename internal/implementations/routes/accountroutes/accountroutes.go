@@ -29,17 +29,23 @@ func Routes(version router.Router, apis *api.APIs) {
 				Title:       "Login",
 				Description: "Login for existing account",
 			})
+			// Stateless JWTs leave nothing to invalidate, so this is a public no-op that always answers 204.
+			public.Post("/logout", apis.AccountAPI.Logout, &router.RouterDocs{
+				Tags:        tag,
+				Title:       "Logout",
+				Description: "Log out. A no-op: tokens are stateless, the client discards its token. Always 204",
+			})
 		})
 
 		// auth
 		group.Scope(func(auth router.Router) {
 			auth.Use(middleware.MIDDLEWARE_AUTH)
-			auth.Post("/me", apis.AccountAPI.Me, &router.RouterDocs{
+			auth.Get("/me", apis.AccountAPI.Me, &router.RouterDocs{
 				Security:    router.SecAuths{router.SecurityBearerAuth},
-				Response:    account.MeResponse{},
+				Response:    account.UserResponse{},
 				Tags:        tag,
 				Title:       "Me",
-				Description: "Get authenticated account info",
+				Description: "Resolve the account behind the bearer token (restore a session)",
 			})
 		})
 	})

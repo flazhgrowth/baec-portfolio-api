@@ -1,6 +1,7 @@
 package sudokugame
 
 import (
+	"math"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -18,7 +19,14 @@ const (
 	StatusCompleted  = "completed"
 
 	DefaultGuestName = "Player 2"
-	maxNameLength    = 20
+
+	EndReasonSolved  = "solved"
+	EndReasonForfeit = "forfeit"
+
+	JoinCodeLength = 6
+	// LobbyTTL is how long an unjoined online lobby stays joinable.
+	LobbyTTL      = 30 * time.Minute
+	maxNameLength = 20
 )
 
 type (
@@ -29,6 +37,53 @@ type (
 		Difficulty    sudoku.Difficulty `json:"-"`
 		IsOnline      bool              `json:"online"`
 		PlayerNames   []string          `json:"player_names"`
+	}
+
+	// { "code": "ABC234" }
+	JoinSessionRequest struct {
+		Code string `json:"code"`
+	}
+
+	// POST /games/{gameId}/moves, token from the X-Player-Token header. Row, Col
+	// and Value are floats only so a missing or fractional number can be told
+	// apart from a valid one and answered with a validation error.
+	MoveRequest struct {
+		GameID string   `path:"gameId" pathtype:"string" json:"-"`
+		Token  string   `json:"-"`
+		Row    *float64 `json:"row"`
+		Col    *float64 `json:"col"`
+		Value  *float64 `json:"value"`
+	}
+	MoveResponse struct {
+		Result    string       `json:"result"`
+		Points    int          `json:"points"`
+		ElapsedMs *int         `json:"elapsed_ms"`
+		Game      GameResponse `json:"game"`
+		Events    []GameEvent  `json:"events"`
+	}
+
+	// ConflictError is a 409 that carries the game as it now stands, so the
+	// client can resync without another call.
+	ConflictError struct {
+		Code    string
+		Message string
+		Game    GameResponse
+	}
+
+	// POST /games/{gameId}/turn/expire. No token: it is a fallback for the
+	// server's own timer, and it only acts once the deadline has passed.
+	ExpireTurnRequest struct {
+		GameID string `path:"gameId" pathtype:"string" json:"-"`
+	}
+
+	// POST /games/{gameId}/forfeit, token from the X-Player-Token header.
+	ForfeitRequest struct {
+		GameID string `path:"gameId" pathtype:"string" json:"-"`
+		Token  string `json:"-"`
+	}
+
+	GetGameRequest struct {
+		ID string `path:"gameId" pathtype:"string" json:"-"`
 	}
 
 	// Rules are the constants a game is played by. They are snapshotted on the
@@ -133,4 +188,58 @@ func (args *CreateSessionRequest) GuestName() string {
 	}
 
 	return name
+}
+
+// Normalize makes the code case-insensitive and ignores stray whitespace.
+func (args *JoinSessionRequest) Normalize() *JoinSessionRequest {
+	args.Code = strings.ToUpper(strings.TrimSpace(args.Code))
+
+	return args
+}
+
+// Validate returns a human-readable reason, or "" when the request is valid.
+func (args *JoinSessionRequest) Validate() string {
+	if len(args.Code) != JoinCodeLength {
+		return "code must be 6 characters"
+	}
+
+	return ""
+}
+
+// TurnDue reports whether the running turn's deadline has passed at the given time.
+// Only a started versus game has a turn, so anything else is never due.
+func (datum *Game) TurnDue(at time.Time) bool {
+	return datum.Status == StatusInProgress &&
+		datum.TurnDeadlineAt.Valid &&
+		!at.Before(datum.TurnDeadlineAt.Time)
+}
+
+// LobbyExpired reports whether an unjoined online lobby has outlived LobbyTTL.
+func (datum *Game) LobbyExpired(at time.Time) bool {
+	return datum.Status == StatusWaiting && at.Sub(datum.CreatedAt) > LobbyTTL
+}
+
+func (err *ConflictError) Error() string { return "[" + err.Code + "] " + err.Message }
+
+// Ints returns the move's coordinates and value, or a reason if any is missing or not a whole number.
+func (args *MoveRequest) Ints() (row, col, value int, reason string) {
+	toInt := func(n *float64) (int, bool) {
+		if n == nil || *n != math.Trunc(*n) || math.Abs(*n) > 1e6 {
+			return 0, false
+		}
+
+		return int(*n), true
+	}
+
+	row, okRow := toInt(args.Row)
+	col, okCol := toInt(args.Col)
+	if !okRow || !okCol {
+		return 0, 0, 0, "row and col must be integers between 0 and 8"
+	}
+	value, okValue := toInt(args.Value)
+	if !okValue {
+		return 0, 0, 0, "value must be an integer between 1 and 9"
+	}
+
+	return row, col, value, ""
 }

@@ -17,7 +17,7 @@ import (
 
 const (
 	joinCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-	joinCodeLength   = 6
+	joinCodeLength   = sudokugame.JoinCodeLength
 	// Codes are random over 32^6 (~1e9) values, so a collision with another open
 	// lobby is rare; a few retries make a failure practically impossible.
 	maxJoinCodeAttempts = 5
@@ -28,7 +28,7 @@ func (svc *service) CreateSession(ctx context.Context, caller entity.AccountInfo
 
 	args.Normalize()
 	if reason := args.Validate(); reason != "" {
-		return nil, apierrors.ErrorUnprocessableEntity(reason).WithCode("VALIDATION_ERROR")
+		return nil, invalidRequest(reason)
 	}
 
 	board := sudoku.NewBoard()

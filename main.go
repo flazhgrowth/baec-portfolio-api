@@ -21,7 +21,7 @@ func main() {
 				Opts: cors.Options{
 					AllowedOrigins:   []string{"*"},
 					AllowedMethods:   []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions},
-					AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Content-Length", "X-CSRF-Token", "Accept-Encoding", "X-Callback-Token", "X-API-Key", "X-API-Version", "Idempotency-Key"},
+					AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Content-Length", "X-CSRF-Token", "Accept-Encoding", "X-Callback-Token", "X-API-Key", "X-API-Version", "Idempotency-Key", "X-Player-Token"},
 					ExposedHeaders:   []string{"Link"},
 					AllowCredentials: false,
 					MaxAge:           300, // Maximum value not ignored by any of major browsers

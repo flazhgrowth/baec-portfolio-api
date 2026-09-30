@@ -22,8 +22,30 @@ func (board BoardSpace) clone() BoardSpace {
 	return cloned
 }
 
+// maxCarveAttempts bounds how many times Generate re-carves the same solution
+// looking for the requested clue count.
+const maxCarveAttempts = 10
+
+// Generate carves the puzzle down to difficulty.Clue clues while keeping exactly
+// one solution. Carving is greedy and randomised, so some orders get stuck above
+// the target; Generate then re-carves, and if no attempt reaches the target it
+// keeps the sparsest puzzle it found (a few clues over target, still unique).
 func (puzzle *Puzzle) Generate(difficulty Difficulty) {
-	puzzle.Puzzle.generatePuzzle(difficulty)
+	var best PuzzleSpace
+	bestClues := 82
+
+	for range maxCarveAttempts {
+		candidate := PuzzleSpace(puzzle.Solution.clone())
+		reached := candidate.generatePuzzle(difficulty)
+		if clues := candidate.clueCount(); clues < bestClues {
+			best, bestClues = candidate, clues
+		}
+		if reached {
+			break
+		}
+	}
+
+	puzzle.Puzzle = best
 }
 
 func (board PuzzleSpace) PrintPuzzle() {
@@ -67,12 +89,18 @@ func (board PuzzleSpace) countSolutions(pos, limit int) int {
 	return count
 }
 
-func (board PuzzleSpace) generatePuzzle(difficulty Difficulty) {
+// generatePuzzle removes clues until difficulty.Clue remain, and reports whether it
+// got there. It gives up, returning false, once every cell has been tried.
+func (board PuzzleSpace) generatePuzzle(difficulty Difficulty) (reached bool) {
 	emptySpace := 81 - difficulty.Clue
 	checker := map[int]struct{}{}
 
 	firstChecker := 0
 	for emptySpace > 0 {
+		if len(checker) == 81 {
+			return false
+		}
+
 		pos := rand.IntN(81)
 		if _, found := checker[pos]; found {
 			// emptySpace -= 1
@@ -100,4 +128,19 @@ func (board PuzzleSpace) generatePuzzle(difficulty Difficulty) {
 
 		emptySpace -= 1
 	}
+
+	return true
+}
+
+func (board PuzzleSpace) clueCount() int {
+	clues := 0
+	for row := range 9 {
+		for col := range 9 {
+			if !board.cellIsEmpty(row, col) {
+				clues++
+			}
+		}
+	}
+
+	return clues
 }

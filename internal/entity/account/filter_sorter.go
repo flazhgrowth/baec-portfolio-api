@@ -10,6 +10,7 @@ import (
 
 type (
 	AccountFilter struct {
+		ID       model.Filter[string]
 		Username model.Filter[string]
 	}
 	AccountSorter struct {
@@ -33,6 +34,7 @@ func (datum *Account) InsertValuesQuery(builder squirrel.InsertBuilder) squirrel
 }
 
 func (filter *AccountFilter) ConditionQuery(builder squirrel.SelectBuilder) squirrel.SelectBuilder {
+	builder = filter.ID.ConditionQuery(builder, "id")
 	builder = filter.Username.ConditionQuery(builder, "username")
 
 	return builder

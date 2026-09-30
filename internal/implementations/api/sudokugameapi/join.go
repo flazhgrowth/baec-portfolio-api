@@ -2,7 +2,6 @@ package sudokugameapi
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokugame"
@@ -10,7 +9,7 @@ import (
 	"github.com/flazhgrowth/fg-tamagochi/pkg/http/response"
 )
 
-func (api *api) CreateSession(req request.Request, resp response.Response) {
+func (api *api) JoinSession(req request.Request, resp response.Response) {
 	ctx, cancel := context.WithTimeout(req.GetContext(), time.Second*10)
 	defer cancel()
 
@@ -20,17 +19,17 @@ func (api *api) CreateSession(req request.Request, resp response.Response) {
 		return
 	}
 
-	args := sudokugame.CreateSessionRequest{}
+	args := sudokugame.JoinSessionRequest{}
 	if err = decodeBody(req, &args); err != nil {
 		resp.RespondJSON(nil, err)
 		return
 	}
 
-	session, err := api.sudokuGameSvc.CreateSession(ctx, caller, args)
+	session, err := api.sudokuGameSvc.JoinSession(ctx, caller, args)
 	if err != nil {
 		resp.RespondJSON(nil, err)
 		return
 	}
 
-	resp.RespondJSON(session, nil, http.StatusCreated)
+	resp.RespondJSON(session, nil)
 }

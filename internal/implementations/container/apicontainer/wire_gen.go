@@ -20,6 +20,7 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/noterepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/specialentryrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokugamerepo"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokumoverepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokuplayerrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/accountsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/guestsvc"
@@ -50,7 +51,8 @@ func InitAPI(app2 *app.App) *api.APIs {
 	noteAPI := noteapi.New(noteService)
 	sudokugameRepository := sudokugamerepo.New(app2)
 	sudokuplayerRepository := sudokuplayerrepo.New(app2)
-	sudokugameService := sudokugamesvc.New(app2, sudokugameRepository, sudokuplayerRepository)
+	sudokumoveRepository := sudokumoverepo.New(app2)
+	sudokugameService := sudokugamesvc.New(app2, sudokugameRepository, sudokuplayerRepository, sudokumoveRepository)
 	sudokugameAPI := sudokugameapi.New(sudokugameService)
 	apIs := &api.APIs{
 		AccountAPI:      accountAPI,

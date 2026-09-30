@@ -31,6 +31,15 @@ var (
 	}
 )
 
+// OtherSeat returns the opposing seat in a two-player game.
+func OtherSeat(seat string) string {
+	if seat == SeatOne {
+		return SeatTwo
+	}
+
+	return SeatOne
+}
+
 type (
 	// Player is one seat in one game. Seat is what the API calls Player.id.
 	Player struct {

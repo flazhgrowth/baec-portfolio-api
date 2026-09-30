@@ -2,10 +2,12 @@ package sudokugamesvc
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokugame"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokumove"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokuplayer"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/entity"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/http/apierrors"
@@ -29,6 +31,81 @@ func (tx *fakeTx) Finish(_ context.Context, err *error) {
 type fakeGameRepo struct {
 	collisions int // how many inserts fail with ErrJoinCodeTaken before one succeeds
 	inserted   []*sudokugame.Game
+
+	lobby     *sudokugame.Game // returned by Get when the filter asks for its code while waiting
+	updateErr error
+	// updateQueue scripts the next Update results, one per call; nil means success.
+	updateQueue []error
+	// applyUpdates makes Update change the stored game, as a database would.
+	applyUpdates bool
+	updates      []sudokugame.GameUpdateFields
+	filters      []sudokugame.GameFilter
+	gets         int // reads by id
+	// onUpdate lets a test change the stored game as a side effect, to simulate a concurrent writer.
+	onUpdate func(*sudokugame.Game)
+}
+
+func (repo *fakeGameRepo) Get(_ context.Context, filter sudokugame.GameFilter) (*sudokugame.Game, error) {
+	if filter.ID.Valid {
+		if repo.lobby == nil || filter.ID.V != repo.lobby.ID {
+			return nil, sql.ErrNoRows
+		}
+		game := *repo.lobby
+		repo.gets++
+		return &game, nil
+	}
+	if repo.lobby == nil || !filter.JoinCode.Valid || filter.JoinCode.V != repo.lobby.JoinCode.String ||
+		!filter.Status.Valid || filter.Status.V != repo.lobby.Status {
+		return nil, sql.ErrNoRows
+	}
+	lobby := *repo.lobby
+	return &lobby, nil
+}
+
+func (repo *fakeGameRepo) Update(_ context.Context, fields sudokugame.GameUpdateFields, filter sudokugame.GameFilter) error {
+	if len(repo.updateQueue) > 0 {
+		scripted := repo.updateQueue[0]
+		repo.updateQueue = repo.updateQueue[1:]
+		if scripted != nil {
+			if repo.onUpdate != nil {
+				repo.onUpdate(repo.lobby)
+			}
+			return scripted
+		}
+	} else if repo.updateErr != nil {
+		if repo.onUpdate != nil {
+			repo.onUpdate(repo.lobby)
+		}
+		return repo.updateErr
+	}
+	repo.updates = append(repo.updates, fields)
+	repo.filters = append(repo.filters, filter)
+	if repo.applyUpdates && repo.lobby != nil {
+		applyFields(repo.lobby, fields)
+	}
+	return nil
+}
+
+// applyFields does to a stored game what GameUpdateFields.UpdateSetQuery does in SQL.
+func applyFields(game *sudokugame.Game, f sudokugame.GameUpdateFields) {
+	if f.Status.Valid {
+		game.Status = f.Status.String
+	}
+	if f.Board.Valid {
+		game.Board = f.Board.String
+	}
+	if f.ClearTurn {
+		game.TurnPlayerSeat, game.TurnStartedAt, game.TurnDeadlineAt = sql.NullString{}, sql.NullTime{}, sql.NullTime{}
+	}
+	if f.TurnPlayerSeat.Valid {
+		game.TurnPlayerSeat, game.TurnStartedAt, game.TurnDeadlineAt = f.TurnPlayerSeat, f.TurnStartedAt, f.TurnDeadlineAt
+	}
+	if f.CompletedAt.Valid {
+		game.CompletedAt, game.EndReason, game.WinnerSeat = f.CompletedAt, f.EndReason, f.WinnerSeat
+	}
+	if f.IncrementVersion {
+		game.Version++
+	}
 }
 
 func (repo *fakeGameRepo) Insert(_ context.Context, datum *sudokugame.Game) error {
@@ -41,8 +118,53 @@ func (repo *fakeGameRepo) Insert(_ context.Context, datum *sudokugame.Game) erro
 }
 
 type fakePlayerRepo struct {
-	err      error
-	inserted []sudokuplayer.Player
+	err       error
+	inserted  []sudokuplayer.Player
+	seated    sudokuplayer.Players // returned by Find
+	updates   map[string]sudokuplayer.PlayerUpdateFields
+	updateErr error
+}
+
+func (repo *fakePlayerRepo) Update(_ context.Context, fields sudokuplayer.PlayerUpdateFields, filter sudokuplayer.PlayerFilter) error {
+	if repo.updateErr != nil {
+		return repo.updateErr
+	}
+	if repo.updates == nil {
+		repo.updates = map[string]sudokuplayer.PlayerUpdateFields{}
+	}
+	repo.updates[filter.Seat.V] = fields
+	return nil
+}
+
+type fakeMoveRepo struct {
+	err   error
+	moves []sudokumove.Move
+}
+
+func (repo *fakeMoveRepo) Insert(_ context.Context, datum *sudokumove.Move) error {
+	if repo.err != nil {
+		return repo.err
+	}
+	repo.moves = append(repo.moves, *datum)
+	return nil
+}
+
+func (repo *fakePlayerRepo) Get(_ context.Context, filter sudokuplayer.PlayerFilter) (*sudokuplayer.Player, error) {
+	for _, p := range repo.seated {
+		if filter.GameID.Valid && p.GameID != filter.GameID.V {
+			continue
+		}
+		if filter.TokenHash.Valid && p.TokenHash == filter.TokenHash.V {
+			found := p
+			return &found, nil
+		}
+	}
+	return nil, sql.ErrNoRows
+}
+
+// Find hands out a copy, like a database does: the service mutates what it reads.
+func (repo *fakePlayerRepo) Find(context.Context, sudokuplayer.PlayerFilter) (sudokuplayer.Players, error) {
+	return append(sudokuplayer.Players(nil), repo.seated...), nil
 }
 
 func (repo *fakePlayerRepo) Insert(_ context.Context, datum *sudokuplayer.Player) error {
@@ -57,7 +179,7 @@ var caller = entity.AccountInfo{ID: "acc-1", Username: "Alex"}
 
 func newService() (*service, *fakeTx, *fakeGameRepo, *fakePlayerRepo) {
 	tx, games, players := &fakeTx{}, &fakeGameRepo{}, &fakePlayerRepo{}
-	return &service{tx: tx, gameRepo: games, playerRepo: players}, tx, games, players
+	return &service{tx: tx, gameRepo: games, playerRepo: players, moveRepo: &fakeMoveRepo{}, hub: newHub()}, tx, games, players
 }
 
 func TestCreateSession(t *testing.T) {

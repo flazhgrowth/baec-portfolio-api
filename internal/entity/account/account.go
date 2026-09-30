@@ -1,6 +1,6 @@
 package account
 
-import "github.com/flazhgrowth/fg-tamagochi/pkg/db/entity"
+import "time"
 
 type (
 	LoginRequest struct {
@@ -22,7 +22,10 @@ type (
 )
 
 type (
-	MeResponse struct {
-		AccountInfo entity.AccountInfo `json:"me"`
+	// UserResponse is the contract's User: what GET /auth/me returns.
+	UserResponse struct {
+		ID        string    `json:"id"`
+		Username  string    `json:"username"`
+		CreatedAt time.Time `json:"created_at"`
 	}
 )

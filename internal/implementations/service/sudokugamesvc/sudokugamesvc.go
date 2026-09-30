@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokugame"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokumove"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokuplayer"
 	"github.com/flazhgrowth/fg-tamagochi/app"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/sqlator/sqltx"
@@ -25,12 +26,16 @@ type service struct {
 	tx         sqltx.SQLTx
 	gameRepo   sudokugame.Repository
 	playerRepo sudokuplayer.Repository
+	moveRepo   sudokumove.Repository
+	hub        *hub
 }
 
-func New(app *app.App, gamerepo sudokugame.Repository, playerrepo sudokuplayer.Repository) sudokugame.Service {
+func New(app *app.App, gamerepo sudokugame.Repository, playerrepo sudokuplayer.Repository, moverepo sudokumove.Repository) sudokugame.Service {
 	return &service{
 		tx:         app.GetTxSQLator(),
 		gameRepo:   gamerepo,
 		playerRepo: playerrepo,
+		moveRepo:   moverepo,
+		hub:        newHub(),
 	}
 }

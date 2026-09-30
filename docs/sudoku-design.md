@@ -155,15 +155,15 @@ CREATE INDEX sudoku_moves_game_idx ON sudoku_moves (game_id, id);
 | --- | --- |
 | `POST /auth/register` | insert `accounts`, sign a JWT → `AuthSession`. 409 `USERNAME_TAKEN` on the `lower(username)` unique violation. |
 | `POST /auth/login` | lookup by `lower(username)`, verify hash (existing `ValidatePassword`), sign a new JWT. Same 401 for unknown user and bad password. |
-| `GET /auth/me` | verify the JWT, load the account by `sub`. |
+| `GET /auth/me` | **Implemented**: verify the JWT, load the account by id, return bare `{id, username, created_at}`; a deleted account is 401 `INVALID_TOKEN`. |
 | `POST /auth/logout` | no-op, always 204 (stateless JWT). |
 | `POST /games` | generate puzzle+solution; insert game + seat(s). `single`: 1 seat, `in_progress`, no turn. Same-device versus: 2 seats (p2 `user_id` NULL, name from `player_names[1]`, default "Player 2"), `in_progress`, turn = p1. Online: 1 seat, `waiting`, `join_code`. |
 | `POST /games/join` | lock the `waiting` game by `upper(join_code)`; insert p2; set `in_progress`, `join_code = NULL`, `started_at = now()`, turn = p1. Lost race → `GAME_FULL`; no match → `JOIN_CODE_NOT_FOUND`. |
-| `GET /games/{id}` | load, **apply due state** (§5), return `Game` (minus `solution`). |
+| `GET /games/{id}` | load, apply due state, return `Game` (minus `solution`). **Implemented:** turn expiry only, as a version-guarded update (a concurrent writer wins, we re-read). Presence flips and disconnect forfeits are deferred until the event stream/heartbeat exist; applying them now would forfeit every online player after 60 s. An unjoined lobby older than 30 min answers 404. |
 | `GET /games/{id}/events` | resolve seat by `token_hash`; register SSE subscriber; send full `update`. |
-| `POST /games/{id}/moves` | lock game, apply due state, validate, update board/seat/turn/version, insert `sudoku_moves`. |
-| `POST /games/{id}/turn/expire` | lock game, apply due state; 409 `TURN_NOT_EXPIRED` if nothing was due. |
-| `POST /games/{id}/forfeit` | lock game, mark completed with `end_reason = forfeit`, winner = other seat. |
+| `POST /games/{id}/moves` | **Implemented.** Auth by `X-Player-Token`; engine validates and applies; one tx saves game + seats + `sudoku_moves`. A late move commits the expiry first, then answers 409 `TURN_EXPIRED` with `data.game`. |
+| `POST /games/{id}/turn/expire` | **Implemented.** Public. Same engine `ApplyDue` + version-guarded save as moves; 409 `TURN_NOT_EXPIRED` / `NO_ACTIVE_TURN` / `GAME_NOT_STARTED` / `GAME_COMPLETED` carry `data.game`. A lost race re-reads, so a caller who lost to the timer (or another caller) gets `TURN_NOT_EXPIRED`. |
+| `POST /games/{id}/forfeit` | **Implemented.** `X-Player-Token`; online + in-progress only (409 `NOT_ONLINE` / `GAME_NOT_STARTED` / `GAME_COMPLETED` with `data.game`). Any seat may forfeit regardless of turn or score; winner = the other seat; version-guarded save. Explicit forfeit only: the *disconnect* forfeit still waits for presence. |
 
 `Game` response assembly: `puzzle`/`board` are expanded from the 81-char strings; `players` are ordered `seat ASC`;
 `current_turn` built from the three `turn_*` columns; `version`, `server_time = now()`.
@@ -188,8 +188,17 @@ then reply `409 TURN_EXPIRED` with the new game). So the handler must persist `A
 as a value rather than rolling back. Design: the engine returns `(newState, events, err)`; the service always saves
 `newState` and only then surfaces `err`. No rollback path for domain errors, only for DB errors.
 
-**Engine is pure Go** (`internal/entity/sudokugame` or a new `sudokuengine` package): `ApplyDue`, `Move`, `Forfeit`, `Join`,
-with `now` injected so it is unit-testable, mirroring `src/mock/engine.ts` and `engine.test.ts` in the web repo. Port those tests.
+> **How concurrency is actually done (implemented with `/games/join` and `/moves`):** the repo's `Reader().Get/Find` ignore the
+> transaction in `ctx`, so `SELECT ... FOR UPDATE` through it would lock nothing, and `Writer().Write` cannot report rows
+> affected on Postgres. Instead every write is **optimistic**: the game update is guarded by the version that was read
+> (`WHERE id = $1 AND version = $2`) and goes through `Writer().Insert`, which appends `RETURNING id`, so a lost race surfaces
+> as `sql.ErrNoRows`. The game update, both seat updates and the `sudoku_moves` row commit in one transaction; on
+> `errVersionConflict` the whole request restarts from a fresh read (max 5 attempts). The winner's row lock also holds the
+> loser's update back until it commits. `join` uses the same idea with a `status = 'waiting'` guard.
+
+**Engine is pure Go** (`internal/entity/sudokugame/engine.go`, type `Match`): `ApplyDue` and `SubmitMove` are done, with `now`
+injected, ported from `src/mock/engine.ts` and its tests (same check order, skip-turn logic, draw/winner rules). `Forfeit` and
+presence are still to come.
 
 Scoring: `max(min_points, max_points - floor(elapsed_ms/1000))`. A wrong fill isn't written to `board`; faults/mistakes +1;
 turn ends. At `fault_limit` set `skip_turns_remaining = skip_turns_on_fault_limit`; consume on each return of the turn; reset
@@ -203,6 +212,13 @@ applies `ApplyDue` per game under the row lock, publishes the events. Same sweep
 get 404 `GAME_NOT_FOUND`). Lazy application on request remains the correctness guarantee; the sweeper is for clients that are gone.
 
 ## 6. Realtime (SSE)
+
+**Implemented so far** (`GET /games/{id}/events`): the in-memory hub, token auth, the full-state `update` on connect, 10 s
+`: ping`, and lifting the server write timeout per stream (verified: a stream survives past the 30 s timeout).
+Published events: `player_joined` (after the join transaction commits) and `turn_expired` (when any request applies an
+expiry). A subscriber whose 32-update buffer fills is cut, and the client reconnects and is resynced by the initial
+`update`, rather than silently missing one. **Not yet:** presence (`connected` flips, `player_connection`, disconnect forfeit)
+and the events of moves/forfeit, which arrive with those endpoints.
 
 - In-process hub: `map[gameID]map[subscriber]chan GameUpdate`. After a committing transaction, the service publishes
   `GameUpdate{game, events}` to the hub.
@@ -249,11 +265,13 @@ the puzzle also blanked the stored solution. It now deep-copies.
 2. **JWT expiry:** the contract has no session limit. What `exp` does the current JWT use? A long TTL (e.g. 30 days) is
    the closest fit, since logout can't revoke anything.
 3. **Retention:** keep completed games and moves forever (leaderboard/replay), or prune after N days? I assume keep.
-4. **Response envelope:** confirmed by running the server: every response, success and error, is wrapped as
-   `{"code","message","data","servertime"}` and error codes are lowercase (`unauthorized`, `bad_request`). The contract wants bare
-   bodies (`Session`, `{"error":{code,message,game}}`) and uppercase codes. `POST /games` currently returns the repo's envelope
-   with the contract's `VALIDATION_ERROR` code for 422s. Decide: adapt the sudoku routes to the contract, or have the web client
-   read `data`?
+4. **Response envelope: decided by the client, not optional.** Confirmed by reading `baec-sudoku-web/src/api/httpApi.ts` and
+   `httpAuthApi.ts`: the real client parses **bare** success bodies (`res.json() as T`) and errors as
+   `{"error": {"code","message","game"?}}`. This repo's `RespondJSON` wraps everything as `{code,message,data,servertime}`,
+   so the client cannot read those responses. Converted so far via `api/contractresp`: `GET /auth/me` (bare `User`),
+   `POST /auth/logout` (204), and the auth middleware's 401 (`INVALID_TOKEN`, which also covers `POST /games` and
+   `/games/join`). **Still enveloped:** register/login (contract wants `AuthSession {user, token}`) and every game endpoint's
+   success and 409 bodies.
 5. **Single replica** acceptable for SSE (in-memory hub)? If not, I'll design it on `LISTEN/NOTIFY` from the start.
 6. **Same-device versus and the turn timer:** the server sweeper will expire turns for these too (simplest, consistent). The
    web client's `turn/expire` call then mostly returns `409 TURN_NOT_EXPIRED`. Fine?

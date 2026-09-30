@@ -7,6 +7,7 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/note"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokugame"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokumove"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokuplayer"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/accountrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/guestrepo"
@@ -14,6 +15,7 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/noterepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/specialentryrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokugamerepo"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokumoverepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokuplayerrepo"
 	"github.com/google/wire"
 )
@@ -26,6 +28,7 @@ var DBRepositoryWireSet = wire.NewSet(
 	noterepo.New,
 	sudokugamerepo.New,
 	sudokuplayerrepo.New,
+	sudokumoverepo.New,
 )
 
 type DBRepositories struct {
@@ -36,4 +39,5 @@ type DBRepositories struct {
 	NoteRepo         note.NoteRepository
 	SudokuGameRepo   sudokugame.Repository
 	SudokuPlayerRepo sudokuplayer.Repository
+	SudokuMoveRepo   sudokumove.Repository
 }
