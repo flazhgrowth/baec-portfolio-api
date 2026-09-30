@@ -6,11 +6,13 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/msg"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/note"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokugame"
 	accountapi "github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/acccountapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/guestapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/msgapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/noteapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/specialentryapi"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/sudokugameapi"
 	"github.com/google/wire"
 )
 
@@ -20,6 +22,7 @@ var APIWireSet = wire.NewSet(
 	specialentryapi.New,
 	msgapi.New,
 	noteapi.New,
+	sudokugameapi.New,
 )
 
 type APIs struct {
@@ -28,4 +31,5 @@ type APIs struct {
 	SpecialEntryAPI specialentry.SpecialEntryAPI
 	MsgAPI          msg.MsgAPI
 	NoteAPI         note.NoteAPI
+	SudokuGameAPI   sudokugame.API
 }

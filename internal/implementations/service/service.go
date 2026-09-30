@@ -6,11 +6,13 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/msg"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/note"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/sudokugame"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/accountsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/guestsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/msgsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/notesvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/specialentrysvc"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/sudokugamesvc"
 	"github.com/google/wire"
 )
 
@@ -20,6 +22,7 @@ var ServiceWireSet = wire.NewSet(
 	specialentrysvc.New,
 	msgsvc.New,
 	notesvc.New,
+	sudokugamesvc.New,
 )
 
 type Services struct {
@@ -28,4 +31,5 @@ type Services struct {
 	SpecialEntrySvc specialentry.SpecialEntryService
 	MsgSvc          msg.MsgService
 	NoteSvc         note.NoteService
+	SudokuGameSvc   sudokugame.Service
 }

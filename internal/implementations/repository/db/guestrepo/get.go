@@ -5,7 +5,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/guest"
-	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
 )
 
 func (repo *repository) Find(ctx context.Context, filter guest.GuestFilter, sorter guest.GuestSorter) (data guest.Guests, err error) {

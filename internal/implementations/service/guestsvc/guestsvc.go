@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/guest"
-	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
 )
 
 var (

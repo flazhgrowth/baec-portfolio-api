@@ -3,12 +3,14 @@ package main
 import (
 	"net/http"
 
+	"github.com/flazhgrowth/baec-portfolio-api/cmd/sudokucmd"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/middleware"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/routes"
 	"github.com/flazhgrowth/fg-tamagochi/cmd"
 	"github.com/flazhgrowth/fg-tamagochi/cmd/serve"
 	libmw "github.com/flazhgrowth/fg-tamagochi/pkg/http/middleware"
 	"github.com/go-chi/cors"
+	"github.com/spf13/cobra"
 )
 
 func main() {
@@ -27,8 +29,13 @@ func main() {
 			},
 			Middlewares: map[libmw.HTTPMiddleware]func(next http.Handler) http.Handler{
 				middleware.MIDDLEWARE_CMS_KEY: libmw.BasicAPIKeyMiddleware("cms"),
+				middleware.MIDDLEWARE_AUTH:    middleware.AuthMiddleware,
 			},
 			UseDB: true,
+		},
+
+		Commands: []*cobra.Command{
+			sudokucmd.Command(),
 		},
 	})
 }

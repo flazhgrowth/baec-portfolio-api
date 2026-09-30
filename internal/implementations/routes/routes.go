@@ -25,6 +25,9 @@ func Routes(app *app.App) router.Router {
 	rtr.Group("/api/v1", func(version router.Router) {
 		v1(version, apis)
 	})
+	rtr.Group("/ms/sudous/api/v1", func(version router.Router) {
+		v1Sudous(version, apis)
+	})
 	if !config.GetConfig().IsEnvProduction() {
 		rtr.ServeDocs()
 		rtr.ServeProfiler()

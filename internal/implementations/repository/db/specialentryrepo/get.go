@@ -6,7 +6,7 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
-	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
 )
 
 func (repo *repository) Get(ctx context.Context, filter specialentry.SpecialEntryFilter) (datum *specialentry.SpecialEntry, err error) {

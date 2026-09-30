@@ -3,7 +3,7 @@ package notesvc
 import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/guest"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/note"
-	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
 )
 
 var baselogpath logger.LogPath = logger.LogPath("notesvc")

@@ -4,7 +4,7 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
 	"github.com/flazhgrowth/fg-tamagochi/app"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/sqlator/sqltx"
-	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
 )
 
 var (

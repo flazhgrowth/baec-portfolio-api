@@ -8,7 +8,7 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/entity/specialentry"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/model"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/http/apierrors"
-	"github.com/flazhgrowth/fg-tamagochi/pkg/logger"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
 )
 
 func (svc *service) Validate(ctx context.Context, args specialentry.ValidateRequest) (err error) {

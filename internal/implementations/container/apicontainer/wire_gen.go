@@ -13,16 +13,20 @@ import (
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/msgapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/noteapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/specialentryapi"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/api/sudokugameapi"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/accountrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/guestrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/msgrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/noterepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/specialentryrepo"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokugamerepo"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/repository/db/sudokuplayerrepo"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/accountsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/guestsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/msgsvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/notesvc"
 	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/specialentrysvc"
+	"github.com/flazhgrowth/baec-portfolio-api/internal/implementations/service/sudokugamesvc"
 	"github.com/flazhgrowth/fg-tamagochi/app"
 )
 
@@ -44,12 +48,17 @@ func InitAPI(app2 *app.App) *api.APIs {
 	noteRepository := noterepo.New(app2)
 	noteService := notesvc.New(noteRepository, guestRepository)
 	noteAPI := noteapi.New(noteService)
+	sudokugameRepository := sudokugamerepo.New(app2)
+	sudokuplayerRepository := sudokuplayerrepo.New(app2)
+	sudokugameService := sudokugamesvc.New(app2, sudokugameRepository, sudokuplayerRepository)
+	sudokugameAPI := sudokugameapi.New(sudokugameService)
 	apIs := &api.APIs{
 		AccountAPI:      accountAPI,
 		GuestAPI:        guestAPI,
 		SpecialEntryAPI: specialEntryAPI,
 		MsgAPI:          msgAPI,
 		NoteAPI:         noteAPI,
+		SudokuGameAPI:   sudokugameAPI,
 	}
 	return apIs
 }

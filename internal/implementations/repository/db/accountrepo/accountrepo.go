@@ -5,6 +5,11 @@ import (
 	"github.com/flazhgrowth/fg-tamagochi/app"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/sqlator"
 	"github.com/flazhgrowth/fg-tamagochi/pkg/db/sqlator/sqltx"
+	"github.com/flazhgrowth/fg-tamagopkg/logger"
+)
+
+var (
+	baselogpath logger.LogPath = "accountrepo"
 )
 
 type repository struct {
