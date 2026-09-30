@@ -4,6 +4,9 @@ import (
 	"regexp"
 	"time"
 	"unicode/utf8"
+
+	"github.com/flazhgrowth/fg-tamagochi/pkg/db/entity"
+	"github.com/flazhgrowth/fg-tamagochi/pkg/http/apierrors"
 )
 
 type (
@@ -55,3 +58,18 @@ type (
 		CreatedAt time.Time `json:"created_at"`
 	}
 )
+
+type (
+	ChangePasswordRequest struct {
+		AccountInfo entity.AccountInfo `json:"-"`
+		Password    string             `json:"password"`
+	}
+)
+
+func (datum *ChangePasswordRequest) Validate() error {
+	if datum.Password == "" {
+		return apierrors.ErrorBadRequest("password is mandatory").WithCode("password_mandatory")
+	}
+
+	return nil
+}

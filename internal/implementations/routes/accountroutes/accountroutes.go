@@ -47,6 +47,13 @@ func Routes(version router.Router, apis *api.APIs) {
 				Title:       "Me",
 				Description: "Resolve the account behind the bearer token (restore a session)",
 			})
+			auth.Put("/password", apis.AccountAPI.ChangePassword, &router.RouterDocs{
+				Security:    router.SecAuths{router.SecurityBearerAuth},
+				Request:     account.ChangePasswordRequest{},
+				Tags:        tag,
+				Title:       "Change Password",
+				Description: "Change password for authenticated user",
+			})
 		})
 	})
 }

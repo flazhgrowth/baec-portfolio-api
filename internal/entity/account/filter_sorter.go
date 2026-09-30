@@ -17,7 +17,8 @@ type (
 		Sorter []string
 	}
 	AccountUpdateFields struct {
-		Name sql.NullString
+		Name     sql.NullString
+		Password sql.NullString
 	}
 )
 
@@ -51,6 +52,9 @@ func (sorter *AccountSorter) SortQuery(builder squirrel.SelectBuilder) squirrel.
 func (fields *AccountUpdateFields) UpdateSetQuery(builder squirrel.UpdateBuilder) squirrel.UpdateBuilder {
 	if fields.Name.Valid {
 		builder = builder.Set("name", fields.Name.String)
+	}
+	if fields.Password.Valid {
+		builder = builder.Set("password", fields.Password.String)
 	}
 
 	return builder.Set("updated_at", time.Now())

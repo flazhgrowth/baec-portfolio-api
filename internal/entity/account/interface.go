@@ -13,6 +13,7 @@ type (
 		Register(req request.Request, resp response.Response)
 		Me(req request.Request, resp response.Response)
 		Logout(req request.Request, resp response.Response)
+		ChangePassword(req request.Request, resp response.Response)
 	}
 
 	Service interface {
@@ -21,6 +22,7 @@ type (
 		// Me resolves the account behind a token. An account that no longer exists is
 		// 401 INVALID_TOKEN: the token outlived it.
 		Me(ctx context.Context, id string) (resp *UserResponse, err error)
+		ChangePassword(ctx context.Context, args ChangePasswordRequest) (err error)
 	}
 
 	Repository interface {

@@ -66,6 +66,7 @@ The server is authoritative for the solution, move validation, scoring, turn tim
 | `POST /auth/register` | none | Create an account and log in | envelope `201` |
 | `POST /auth/login` | none | Log in | envelope `200` |
 | `GET /auth/me` | account JWT | Who does this token belong to? | **bare** `200` |
+| `PUT /auth/password` | account JWT | Change the account's password | envelope `200` |
 | `POST /auth/logout` | none (token ignored) | Log out (a no-op) | empty `204` |
 | `POST /games` | account JWT | Start a single / same-device game, or open an online lobby | envelope `201` |
 | `POST /games/join` | account JWT | Join an online lobby by code | envelope `200` |
@@ -123,6 +124,7 @@ Used **only** for account-token failures, which is `401` on `GET /auth/me`, `POS
 | --- | --- | --- |
 | `POST /auth/register`, `POST /auth/login` | A | A |
 | `GET /auth/me` | B | **C** |
+| `PUT /auth/password` | A (`data` is `null`) | A |
 | `POST /auth/logout` | `204` empty | (never fails) |
 | `POST /games`, `POST /games/join` | A | `401` is **C**; everything else A |
 | `GET /games/{id}` | A | A |
@@ -465,6 +467,39 @@ Response `401`
   }
 }
 ```
+
+### `PUT /auth/password`: change password
+
+Header: `Authorization: Bearer <account token>`. Body: `{ "password": string }`, the **new** password. It applies to the
+account behind the token. The current password is not asked for, and existing tokens keep working until they expire.
+
+```http
+PUT /auth/password
+Authorization: Bearer <account-jwt>
+Content-Type: application/json
+
+{"password": "new-hunter2222"}
+```
+
+Response `200`
+
+```json
+{
+  "code": "success",
+  "message": "Success",
+  "data": null,
+  "servertime": 1790781300
+}
+```
+
+| Status | `code` | When |
+| --- | --- | --- |
+| `200` | `success` | Password changed. |
+| `400` | `password_mandatory` | `password` is missing or empty. |
+| `404` | `account_not_found` | The token is valid but its account no longer exists. |
+| `500` | `internal_server_error` | Unexpected server or database failure. |
+
+A missing or invalid token is rejected before the handler runs, with the usual `401 INVALID_TOKEN`.
 
 ### `POST /auth/logout`
 
@@ -1517,6 +1552,8 @@ Every game-endpoint `409` except `GAME_FULL` carries `data.game` (the account `4
 | --- | --- | --- | --- |
 | `bad_request` | 400 | A | `register` / `login` body is not valid JSON. |
 | `conflict` | 409 | A | `register`: that exact username already exists. |
+| `password_mandatory` | 400 | A | `PUT /auth/password`: `password` is empty. |
+| `account_not_found` | 404 | A | `PUT /auth/password`: the token's account no longer exists. |
 | `invalid_credentials` | 401 | A | `login`: unknown user or wrong password. |
 | `internal_server_error` | 500 | A | Unexpected server or database failure. |
 | `INTERNAL_ERROR` | 500 | C | Same, from `GET /auth/me`. |
