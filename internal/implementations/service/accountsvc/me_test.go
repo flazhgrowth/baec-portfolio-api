@@ -17,12 +17,27 @@ type fakeAccountRepo struct {
 	found  *account.Account
 	err    error
 	filter account.AccountFilter
+	stored []account.Account // accounts created through Insert
+}
+
+func (repo *fakeAccountRepo) Insert(_ context.Context, datum *account.Account) error {
+	repo.stored = append(repo.stored, *datum)
+	return nil
 }
 
 func (repo *fakeAccountRepo) Get(_ context.Context, filter account.AccountFilter) (*account.Account, error) {
 	repo.filter = filter
 	if repo.err != nil {
 		return nil, repo.err
+	}
+	// a username lookup matches the way SQL `username = $1` does: exactly
+	if filter.Username.Valid {
+		for i := range repo.stored {
+			if repo.stored[i].Username == filter.Username.V {
+				return &repo.stored[i], nil
+			}
+		}
+		return nil, sql.ErrNoRows
 	}
 	if repo.found == nil || !filter.ID.Valid || filter.ID.V != repo.found.ID {
 		return nil, sql.ErrNoRows

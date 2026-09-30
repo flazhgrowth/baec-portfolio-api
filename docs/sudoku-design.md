@@ -1,5 +1,8 @@
 # Sudoku backend: design (draft for review)
 
+> **The API as built is documented in [`api.md`](./api.md), which is the source of truth.** This file is the original design
+> plan and the reasoning behind it; where the two differ (response shapes, presence, error codes), `api.md` wins.
+
 Source: `../baec-sudoku-web/docs/API.md` (base URL `/ms/sudous/api/v1`). This doc covers the database, the
 layering in this repo, the game engine, realtime, and the open questions I need you to decide.
 Nothing here is implemented yet except what "Current state" lists.

@@ -25,8 +25,12 @@ var (
 func (svc *service) Register(ctx context.Context, args account.RegisterRequest) (resp *account.LoginResponse, err error) {
 	logpath := baselogpath.With("Register")
 
+	// Usernames are stored lowercase: Login looks them up lowercased, and this makes
+	// the duplicate check below case-insensitive.
+	args.Username = strings.ToLower(args.Username)
+
 	accountFound, err := svc.accountRepo.Get(ctx, account.AccountFilter{
-		Username: model.Filter[string]{Valid: true, V: strings.ToLower(args.Username)},
+		Username: model.Filter[string]{Valid: true, V: args.Username},
 	})
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		logpath.With("accountRepo.Get").LogError(ctx, "failed to get data from accounts table", err)
