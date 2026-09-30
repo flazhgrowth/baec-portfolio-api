@@ -28,6 +28,9 @@ func (svc *service) Register(ctx context.Context, args account.RegisterRequest) 
 	// Usernames are stored lowercase: Login looks them up lowercased, and this makes
 	// the duplicate check below case-insensitive.
 	args.Username = strings.ToLower(args.Username)
+	if reason := args.Validate(); reason != "" {
+		return nil, apierrors.ErrorUnprocessableEntity(reason).WithCode("VALIDATION_ERROR")
+	}
 
 	accountFound, err := svc.accountRepo.Get(ctx, account.AccountFilter{
 		Username: model.Filter[string]{Valid: true, V: args.Username},

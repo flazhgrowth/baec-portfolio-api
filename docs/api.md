@@ -15,9 +15,8 @@ The server is authoritative for the solution, move validation, scoring, turn tim
 > **Read §3 first.** This API does not use one response shape: there are three, and which one you get depends on
 > the endpoint and the status. A client that assumes a single shape will misread some responses.
 >
-> **Then read §11.** It lists bugs and gaps that exist *today* (for example: `register` does no validation, and the
-> account token cannot be refreshed). The rest of this document describes the intended behavior; §11 describes where the
-> running server falls short of it.
+> **Then read §11.** It lists gaps that exist *today* (for example: no presence tracking and no background turn timer).
+> The rest of this document describes the intended behavior; §11 describes where the running server falls short of it.
 
 ## Contents
 
@@ -160,12 +159,14 @@ Two separate tokens answer two different questions.
 | Comes from | `token` in `register` / `login` | `credentials[].token` in the response to `POST /games` and `POST /games/join` |
 | Sent as | `Authorization: Bearer <token>` | `X-Player-Token: <token>` header, or `?token=` on the event stream |
 | Needed by | `GET /auth/me`, `POST /games`, `POST /games/join` | `moves`, `forfeit`, `events` |
-| Lifetime | **30 minutes** | until the game is deleted |
+| Lifetime | **30 days** in production (see below) | until the game is deleted |
 
-**The account token expires after 30 minutes and there is no way to refresh it.** `register` and `login` also return a
-`refresh_token` (7-day JWT) but **no endpoint accepts it**. When the account token expires, `GET /auth/me` /
-`POST /games` / `POST /games/join` answer `401 INVALID_TOKEN` (shape C) and the user has to log in again. Already-running
-games are unaffected: they use player tokens.
+**The account token expires after 30 days, and there is no way to refresh it.** The lifetime is the production setting
+`jwt.access_ttl_minutes: 43200` (the code's default, used when the setting is absent, is 30 minutes), so a client should
+not hardcode it. `register` and `login` also return a `refresh_token` (7-day JWT) but **no endpoint accepts it**. When the
+account token expires, `GET /auth/me` / `POST /games` / `POST /games/join` answer `401 INVALID_TOKEN` (shape C) and the
+user has to log in again. Already-running games are unaffected: they use player tokens. Because tokens are stateless and
+logout is a no-op, a token cannot be revoked before it expires.
 
 **Player tokens are shown exactly once**, in the `credentials` of the create/join response. The server stores only a
 hash, `GET /games/{id}` never returns them, and they cannot be recovered. **The client must persist them** (for
@@ -282,8 +283,10 @@ Body: `{ "username": string, "password": string }`.
 response, not what the user typed. Because of this, usernames are unique regardless of case: registering `Alex` and then
 `alex` (or `ALEX`) conflicts.
 
-**The server does not validate either field today** (see [§11](#11-known-issues-and-limitations)); the client should
-enforce the intended rules: username 3–20 letters, digits or underscores; password 6–72 characters.
+**Validation.** After lowercasing, the username must be 3–20 characters, each a letter `a-z`, a digit or an underscore
+(ASCII only: no spaces, punctuation, hyphens, dots, `@` or accented letters). The password must be 6–72 characters
+(Unicode characters, not bytes; spaces count; no other strength rule). The username is checked first. Mirror these rules in
+the form so users get feedback before the round trip.
 
 ```http
 POST /auth/register
@@ -312,6 +315,7 @@ Response `201`
 | --- | --- | --- |
 | `201` | `success` | Created. `data`: `{ id, username, token, refresh_token }`. |
 | `409` | `conflict` | That username is taken (compared case-insensitively). `message` is empty. |
+| `422` | `VALIDATION_ERROR` | `username must be 3-20 characters: letters, digits or underscores` · `password must be 6-72 characters`. Nothing is created. |
 | `400` | `bad_request` | Body is not valid JSON (`invalid request body`). |
 
 ```http
@@ -329,6 +333,42 @@ Response `409`
   "message": "",
   "data": null,
   "servertime": 1790781208
+}
+```
+
+```http
+POST /auth/register
+Content-Type: application/json
+
+{"username": "a b!", "password": "hunter2222"}
+```
+
+Response `422`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "username must be 3-20 characters: letters, digits or underscores",
+  "data": null,
+  "servertime": 1790782546
+}
+```
+
+```http
+POST /auth/register
+Content-Type: application/json
+
+{"username": "alex", "password": "12345"}
+```
+
+Response `422`
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "password must be 6-72 characters",
+  "data": null,
+  "servertime": 1790782546
 }
 ```
 
@@ -1352,7 +1392,7 @@ A tagged union on `type`. Events inside one message are in chronological order; 
 | --- | --- | --- |
 | `id` | string | the account id |
 | `username` | string | lowercase |
-| `token` | string | account JWT, 30 minutes |
+| `token` | string | account JWT (30 days in production) |
 | `refresh_token` | string | 7-day JWT that **nothing accepts**; ignore it |
 
 There is no nested `user` object.
@@ -1455,7 +1495,7 @@ Always read the HTTP status and `code`; `message` is for humans and some message
 
 | `code` | HTTP | Shape | Meaning |
 | --- | --- | --- | --- |
-| `VALIDATION_ERROR` | 422 | A | Bad input, or a malformed body on the game endpoints. |
+| `VALIDATION_ERROR` | 422 | A | Bad input (on `register` and the game endpoints), or a malformed body on the game endpoints. |
 | `INVALID_TOKEN` | 401 | **C** for the account token, **A** for the player token | Missing/unknown/expired token. |
 | `GAME_NOT_FOUND` | 404 | A | No such game (or an expired unjoined lobby). |
 | `JOIN_CODE_NOT_FOUND` | 404 | A | No open lobby with that code. |
@@ -1488,19 +1528,19 @@ Every game-endpoint `409` except `GAME_FULL` carries `data.game` (the account `4
 These describe the server **as deployed today**. Items marked **bug** are defects to be fixed; items marked
 **not built** are missing features. Update this section as they are resolved.
 
-### Bugs in the account endpoints
+### Account endpoints
 
-1. **bug: no input validation on `register`.** A one-character username, names with spaces and punctuation, and even an
-   empty body (empty username, empty password) all create an account. Enforce the intended rules client-side
-   (username 3–20 letters/digits/underscore; password 6–72 characters).
-2. **`register` conflict and some login messages are inconsistent.** `409 conflict` has an empty `message`; the login
-   `401` message is `invalid credentials` for a wrong password but `unauthorized` for an unknown user. Key off `code`.
+1. **Inconsistent messages.** `register`'s `409 conflict` has an empty `message`; the login `401` message is
+   `invalid credentials` for a wrong password but `unauthorized` for an unknown user. Key off `code`, never `message`.
+2. **`register` and `login` answer a malformed JSON body with `400 bad_request`**, while the game endpoints use
+   `422 VALIDATION_ERROR` (and `register` uses `422` for invalid fields).
 
 ### Sessions
 
-3. **The account token lasts 30 minutes and cannot be refreshed** ([§4](#4-authentication-and-identity)). The client has
-   to handle `401 INVALID_TOKEN` by sending the user back to login. The `refresh_token` returned by `register`/`login`
-   is unusable.
+3. **The account token cannot be refreshed and cannot be revoked.** It lasts 30 days in production
+   ([§4](#4-authentication-and-identity)). The client has to handle `401 INVALID_TOKEN` by sending the user back to login.
+   The `refresh_token` returned by `register`/`login` is unusable. Logout is a no-op, so a stolen token works until it
+   expires.
 
 ### Not built
 
@@ -1513,8 +1553,6 @@ These describe the server **as deployed today**. Items marked **bug** are defect
 7. **Single instance only.** The event-stream fan-out is in memory; running more than one API replica would make
    streams miss each other's updates.
 8. **No leaderboard, no "my games" listing, no rate limiting.**
-9. **Malformed bodies answer differently per endpoint group**: `400 bad_request` on `register`/`login`,
-    `422 VALIDATION_ERROR` on the game endpoints.
 
 ## 12. Differences from the original contract
 
@@ -1525,14 +1563,14 @@ For whoever adapts `baec-sudoku-web` (`docs/API.md` / `openapi.yaml` are the old
 | Success body | bare resource | wrapped in `{ code, message, data, servertime }` **except** `GET /auth/me` |
 | Error body | `{ "error": { code, message, game? } }` | that shape **only** for account-token `401`s; otherwise `{ code, message, data, servertime }`; the game is at `data.game`, not `error.game` |
 | `register` / `login` response | `{ user: {id, username, created_at}, token }` | `data: { id, username, token, refresh_token }`; no `user` object, no `created_at` |
-| Username rules | 3–20 `[A-Za-z0-9_]`, unique case-insensitively | lowercased on register, so unique case-insensitively; format and length **not** enforced ([§11](#11-known-issues-and-limitations)) |
-| Password rules | 6–72 chars | not enforced |
-| Session length | no limit | account token expires after 30 minutes, no refresh |
+| Username rules | 3–20 `[A-Za-z0-9_]`, unique case-insensitively | same, enforced: lowercased on register (so `Alex` is stored and returned as `alex`), then validated as `[a-z0-9_]{3,20}` |
+| Password rules | 6–72 chars | same, enforced (counted in characters) |
+| Session length | no limit | account token lasts 30 days in production (30 minutes is only the code default), no refresh |
 | `refresh_token` | none | returned but unusable |
 | Account error codes | `INVALID_CREDENTIALS`, `USERNAME_TAKEN` | `invalid_credentials`, `conflict` (lowercase; different names) |
 | Turn timeouts | server timer fires at `deadline_at`; `turn/expire` is a fallback | **no timer**; `turn/expire` is the mechanism ([§5](#turn-expiry-the-client-must-drive-it)) |
 | Presence | `connected` flips, `forfeit_at`, `player_connection`, forfeit after 60 s | none of it |
-| Malformed body | `422 VALIDATION_ERROR` | `422` on game endpoints, `400 bad_request` on `register`/`login` |
+| Malformed body | `422 VALIDATION_ERROR` | `422` on game endpoints, `400 bad_request` on `register`/`login` (invalid *fields* on `register` are `422`) |
 | `GAME_FULL` | `409` | `409`, message `conflict`, no `data.game` |
 | `POST /auth/logout` | invalidates the token | no-op `204` |
 | SSE, endpoints, event types, game rules, scoring | as described | **same** (minus `player_connection`) |
@@ -1541,9 +1579,9 @@ For whoever adapts `baec-sudoku-web` (`docs/API.md` / `openapi.yaml` are the old
 
 1. Decode every response with the three-shape decoder ([§3](#3-response-shapes)).
 2. After `POST /games` / `POST /games/join`, **persist `credentials`** (per game id). They are never shown again.
-3. Validate usernames and passwords client-side (the server does not, [§11](#11-known-issues-and-limitations)), and show the
+3. Validate usernames and passwords client-side for fast feedback (the server enforces the same rules with `422`), and show the
    `username` the server returns: it is lowercased.
-4. Handle `401 INVALID_TOKEN` on account calls by returning to the login screen (the token lasts 30 minutes).
+4. Handle `401 INVALID_TOKEN` on account calls by returning to the login screen (the token lasts 30 days and cannot be refreshed).
 5. Run your own turn countdown from `current_turn.deadline_at`, corrected by `server_time`, and call
    `POST /games/{id}/turn/expire` when it hits zero. Treat `409 TURN_NOT_EXPIRED` as success (resync from `data.game`).
 6. Open the event stream for online games. Keep only states with a higher `version`; announce each change's `events` once.
